@@ -1,0 +1,63 @@
+---
+- name: Get full cluster status
+  command: microceph.ceph -s
+  register: cluster_status
+  changed_when: false
+
+- name: Display cluster status
+  debug:
+    msg: "{{ cluster_status.stdout_lines }}"
+
+- name: Get MicroCeph deployment summary (tutti i nodi)
+  command: microceph status
+  register: microceph_summary
+  changed_when: false
+
+- name: Display MicroCeph deployment summary
+  debug:
+    msg: "{{ microceph_summary.stdout_lines }}"
+
+- name: Get MDS status
+  command: microceph.ceph mds stat
+  register: mds_stat
+  changed_when: false
+
+- name: Display MDS status
+  debug:
+    msg: "{{ mds_stat.stdout_lines }}"
+
+- name: Get pool list with replica settings
+  command: microceph.ceph osd pool ls detail
+  register: pool_detail
+  changed_when: false
+
+- name: Display pool details
+  debug:
+    msg: "{{ pool_detail.stdout_lines }}"
+
+- name: Verify NTP sync status on bootstrap node
+  command: timedatectl
+  register: ntp_status
+  changed_when: false
+
+- name: Display NTP status
+  debug:
+    msg: "{{ ntp_status.stdout_lines }}"
+
+- name: ERRORE CRITICO — Cluster in HEALTH_ERR
+  fail:
+    msg: "Il cluster e' in stato HEALTH_ERR. Verificare manualmente con: microceph.ceph -s"
+  when: "'HEALTH_ERR' in cluster_status.stdout"
+
+- name: ATTENZIONE — Cluster in HEALTH_WARN (non bloccante)
+  debug:
+    msg:
+      - "HEALTH_WARN rilevato. Causa piu' comune: clock skew tra MON."
+      - "Verificare con: microceph.ceph health detail"
+      - "Se e' clock skew, aspettare 1-2 minuti o riavviare systemd-timesyncd."
+  when: "'HEALTH_WARN' in cluster_status.stdout"
+
+- name: Confirm cluster is HEALTH_OK
+  debug:
+    msg: "Cluster in stato HEALTH_OK — installazione completata con successo!"
+  when: "'HEALTH_OK' in cluster_status.stdout"

@@ -1,0 +1,22 @@
+---
+# ─── MicroCeph Cluster Configuration ──────────────────────────────────────────
+
+# Dimensione del loop file per ogni nodo (OSD virtuale)
+microceph_loop_size: "20G"
+
+# Rete pubblica Ceph — subnet dei 3 nodi (da ip a: 10.205.166.208/28)
+microceph_public_network: "10.205.166.208/28"
+
+# Parametri replica CephFS
+microceph_replica_size: 3
+microceph_min_size: 2
+
+# Nodo che esegue il bootstrap del cluster
+microceph_bootstrap_node: "srv-microceph-01"
+
+# Nomi dei pool CephFS (creati automaticamente da microceph.ceph fs volume create cephfs)
+microceph_data_pool: "cephfs.cephfs.data"
+microceph_meta_pool: "cephfs.cephfs.meta"
+
+# Path del keyring client sul nodo bootstrap (usato poi dai client per montare CephFS)
+microceph_keyring_path: "/root/cephfs.keyring"

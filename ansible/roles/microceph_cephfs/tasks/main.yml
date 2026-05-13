@@ -1,0 +1,117 @@
+---
+- name: Wait for all 3 OSDs to be up before configuring CephFS
+  command: microceph.ceph osd stat
+  register: osd_stat
+  until: "'3 up' in osd_stat.stdout"
+  retries: 18
+  delay: 10
+  changed_when: false
+
+- name: Check if CephFS volume already exists
+  command: microceph.ceph fs ls
+  register: fs_check
+  changed_when: false
+  failed_when: false
+
+- name: Create CephFS volume
+  command: microceph.ceph fs volume create cephfs
+  when: "'cephfs' not in fs_check.stdout"
+  register: fs_create
+
+- name: Wait for MDS daemon to become active
+  command: microceph.ceph mds stat
+  register: mds_stat
+  until: "'up:active' in mds_stat.stdout"
+  retries: 18
+  delay: 10
+  changed_when: false
+
+- name: Set data pool replica size to {{ microceph_replica_size }}
+  command: microceph.ceph osd pool set {{ microceph_data_pool }} size {{ microceph_replica_size }}
+
+- name: Set metadata pool replica size to {{ microceph_replica_size }}
+  command: microceph.ceph osd pool set {{ microceph_meta_pool }} size {{ microceph_replica_size }}
+
+- name: Set data pool min_size to {{ microceph_min_size }}
+  command: microceph.ceph osd pool set {{ microceph_data_pool }} min_size {{ microceph_min_size }}
+
+- name: Set metadata pool min_size to {{ microceph_min_size }}
+  command: microceph.ceph osd pool set {{ microceph_meta_pool }} min_size {{ microceph_min_size }}
+
+# ─── Keyring client con permessi corretti per CSI provisioner ─────────────────
+- name: Create CephFS client user keyring con permessi CSI
+  command: >
+    microceph.ceph auth get-or-create client.cephfs
+    mon 'allow r'
+    mgr 'allow rw'
+    osd 'allow rw tag cephfs *=*'
+    mds 'allow rw'
+  register: cephfs_keyring
+
+- name: Aggiorna caps client.cephfs con permessi corretti per CSI provisioner
+  command: >
+    microceph.ceph auth caps client.cephfs
+    mon 'allow r'
+    mgr 'allow rw'
+    osd 'allow rw tag cephfs *=*'
+    mds 'allow rw'
+  changed_when: false
+
+- name: Save keyring to {{ microceph_keyring_path }}
+  copy:
+    content: "{{ cephfs_keyring.stdout }}\n"
+    dest: "{{ microceph_keyring_path }}"
+    mode: '0600'
+
+# ─── Subvolume group CSI — richiesto dal ceph-csi provisioner ─────────────────
+- name: Check if CSI subvolume group already exists
+  command: microceph.ceph fs subvolumegroup ls cephfs
+  register: subvolumegroup_check
+  changed_when: false
+  failed_when: false
+
+- name: Create CSI subvolume group (richiesto da ceph-csi-cephfs)
+  command: microceph.ceph fs subvolumegroup create cephfs csi
+  when: "'csi' not in subvolumegroup_check.stdout"
+
+# ─── Info cluster ─────────────────────────────────────────────────────────────
+- name: Get cluster FSID
+  command: microceph.ceph fsid
+  register: ceph_fsid
+  changed_when: false
+
+- name: Get MON addresses
+  command: microceph.ceph mon dump
+  register: mon_dump
+  changed_when: false
+
+- name: Get client.cephfs key
+  command: microceph.ceph auth get-key client.cephfs
+  register: cephfs_key
+  changed_when: false
+
+- name: Verify pool list and replica settings
+  command: microceph.ceph osd pool ls detail
+  register: pool_detail
+  changed_when: false
+
+- name: Display CephFS connection information for client setup
+  debug:
+    msg:
+      - "=== CephFS pronto ==="
+      - "FSID      : {{ ceph_fsid.stdout | trim }}"
+      - "Keyring   : {{ microceph_keyring_path }} (su {{ microceph_bootstrap_node }})"
+      - "userKey   : {{ cephfs_key.stdout | trim }}"
+      - ""
+      - "=== Indirizzi MON ==="
+      - "{{ mon_dump.stdout }}"
+      - ""
+      - "=== Subvolume group CSI ==="
+      - "csi subvolume group: creato e pronto per ceph-csi-cephfs"
+      - ""
+      - "=== Esempio mount su client Linux ==="
+      - "sudo apt install ceph-common"
+      - "sudo mkdir /mnt/cephfs"
+      - "# Crea /etc/ceph/ceph.conf con fsid e mon_host"
+      - "# Crea /etc/ceph/ceph.client.cephfs.keyring con la key"
+      - "sudo mount -t ceph :/ /mnt/cephfs -o name=cephfs,fs=cephfs"

@@ -1,0 +1,25 @@
+---
+- name: Check if cluster is already bootstrapped
+  command: microceph status
+  register: bootstrap_check
+  failed_when: false
+  changed_when: false
+
+- name: Bootstrap MicroCeph cluster con public-network {{ microceph_public_network }}
+  command: microceph cluster bootstrap --public-network {{ microceph_public_network }}
+  when: bootstrap_check.rc != 0
+  register: bootstrap_result
+
+- name: Wait for cluster to stabilize after bootstrap
+  pause:
+    seconds: 8
+  when: bootstrap_result is changed
+
+- name: Verify bootstrap status
+  command: microceph status
+  register: bootstrap_status
+  changed_when: false
+
+- name: Show cluster status after bootstrap
+  debug:
+    msg: "{{ bootstrap_status.stdout_lines }}"

@@ -1,0 +1,29 @@
+---
+- name: Check current OSD status on {{ inventory_hostname }}
+  command: microceph status
+  register: osd_status
+  changed_when: false
+
+- name: Add loop OSD ({{ microceph_loop_size }}, 1 OSD) if not already present
+  command: microceph disk add loop,{{ microceph_loop_size }},1
+  when: "'Disks: 0' in osd_status.stdout"
+  register: osd_add
+
+- name: Wait for OSD to initialize
+  pause:
+    seconds: 10
+  when: osd_add is changed
+
+- name: Verify OSD was added on {{ inventory_hostname }}
+  command: microceph status
+  register: osd_verify
+  changed_when: false
+
+- name: Show OSD status
+  debug:
+    msg: "{{ osd_verify.stdout_lines }}"
+
+- name: Fail if OSD still not present after add
+  fail:
+    msg: "OSD non aggiunto correttamente su {{ inventory_hostname }}. Verificare manualmente."
+  when: "'Disks: 0' in osd_verify.stdout"

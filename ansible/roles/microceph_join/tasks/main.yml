@@ -1,0 +1,40 @@
+---
+# Questo role gira su microceph_workers con serial:1
+# Per ogni worker: genera il token su node-01 (delegate_to), poi esegue il join sul worker stesso.
+
+- name: Check if this node is already part of the cluster
+  command: microceph status
+  register: node_status
+  failed_when: false
+  changed_when: false
+
+- name: Generate join token on bootstrap node for {{ inventory_hostname }}
+  command: microceph cluster add {{ inventory_hostname }}
+  delegate_to: "{{ microceph_bootstrap_node }}"
+  register: join_token
+  when: node_status.rc != 0
+
+- name: Join cluster using generated token
+  command: microceph cluster join {{ join_token.stdout | trim }}
+  when: join_token.changed | default(false)
+
+- name: Wait for node to register in the cluster
+  pause:
+    seconds: 10
+  when: join_token.changed | default(false)
+
+- name: Verify node joined the cluster
+  command: microceph status
+  register: join_status
+  changed_when: false
+
+- name: Show cluster status after join
+  debug:
+    msg: "{{ join_status.stdout_lines }}"
+
+- name: Fail if node did not join successfully
+  fail:
+    msg: "Il nodo {{ inventory_hostname }} non risulta nel cluster. Verificare manualmente."
+  when:
+    - join_token.changed | default(false)
+    - join_status.rc != 0

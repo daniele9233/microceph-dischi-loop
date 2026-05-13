@@ -1,0 +1,32 @@
+---
+- name: Check if microceph snap is already installed
+  command: snap list microceph
+  register: snap_check
+  failed_when: false
+  changed_when: false
+
+- name: Install microceph snap
+  command: snap install microceph
+  when: snap_check.rc != 0
+  register: snap_install
+
+- name: Wait for microceph snap to be fully ready
+  command: snap list microceph
+  register: snap_ready
+  until: snap_ready.rc == 0
+  retries: 12
+  delay: 5
+  when: snap_check.rc != 0
+
+- name: Hold microceph automatic updates
+  command: snap refresh --hold microceph
+  changed_when: false
+
+- name: Show installed microceph version
+  command: snap list microceph
+  register: snap_version
+  changed_when: false
+
+- name: Display microceph version
+  debug:
+    msg: "{{ snap_version.stdout_lines }}"

@@ -1,0 +1,66 @@
+---
+# PRIMO PLAY: Installazione MicroCeph snap su tutti i nodi
+- name: "Install MicroCeph on all nodes"
+  hosts: microceph
+  become: yes
+  gather_facts: yes
+  roles:
+    - role: microceph_install
+
+# SECONDO PLAY: Bootstrap del cluster sul nodo principale (srv-microceph-01)
+- name: "Bootstrap MicroCeph cluster on primary node"
+  hosts: microceph_bootstrap
+  become: yes
+  gather_facts: no
+  roles:
+    - role: microceph_bootstrap
+
+# TERZO PLAY: Join degli altri nodi al cluster (uno alla volta, serial:1 obbligatorio)
+- name: "Join worker nodes to cluster"
+  hosts: microceph_workers
+  become: yes
+  gather_facts: no
+  serial: 1
+  roles:
+    - role: microceph_join
+
+# QUARTO PLAY: Aggiunta OSD con loop file (20G) su tutti i nodi
+- name: "Add OSD loop device on all nodes"
+  hosts: microceph
+  become: yes
+  gather_facts: no
+  roles:
+    - role: microceph_osd
+
+# QUINTO PLAY: Configurazione CephFS con replica 3
+- name: "Configure CephFS with replica 3"
+  hosts: microceph_bootstrap
+  become: yes
+  gather_facts: no
+  roles:
+    - role: microceph_cephfs
+
+# SESTO PLAY: Verifica finale del cluster
+- name: "Final cluster health verification"
+  hosts: microceph_bootstrap
+  become: yes
+  gather_facts: no
+  roles:
+    - role: microceph_verify
+  post_tasks:
+    - name: Display completion message
+      debug:
+        msg:
+          - "=============================================="
+          - " MicroCeph cluster installato con successo!  "
+          - "=============================================="
+          - "Cluster   : 3 nodi, replica 3, CephFS attivo"
+          - "Loop OSD  : {{ microceph_loop_size }} per nodo"
+          - "Keyring   : {{ microceph_keyring_path }} su {{ microceph_bootstrap_node }}"
+          - ""
+          - "Per verificare lo stato del cluster:"
+          - "  sudo microceph.ceph -s"
+          - ""
+          - "Per montare CephFS da un client Linux:"
+          - "  sudo mount -t ceph :/ /mnt/cephfs -o name=cephfs,fs=cephfs"
+          - "=============================================="
