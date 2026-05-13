@@ -1,0 +1,105 @@
+# Comandi Ceph per compilare il values.yaml della chart ceph-csi-cephfs
+
+Dopo ogni installazione (o reinstallazione) di MicroCeph, esegui questi due comandi
+sul nodo bootstrap (srv-microceph-01) per ricavare i valori da inserire nel values.yaml.
+
+---
+
+## 1. FSID del cluster
+
+```bash
+microceph.ceph fsid
+```
+
+**Output di esempio:**
+```
+3f2a1b4c-8e7d-4a2f-b1c3-9d6e5f0a2b8c
+```
+
+**Dove va nel values.yaml:**
+Il FSID va copiato in TUTTI i campi `clusterID` presenti nel file (4 occorrenze):
+
+```yaml
+csiConfig:
+  - clusterID: "<FSID-QUI>"       # ← qui
+    monitors:
+      - ...
+
+storageClass:
+  clusterID: "<FSID-QUI>"         # ← qui
+
+volumeSnapshotClass:
+  parameters:
+    clusterID: "<FSID-QUI>"       # ← qui
+
+# e nell'eventuale parametro extra sotto storageClass:
+parameters:
+  clusterID: "<FSID-QUI>"         # ← qui
+```
+
+---
+
+## 2. Key dell'utente client.cephfs
+
+```bash
+microceph.ceph auth get-key client.cephfs
+```
+
+**Output di esempio:**
+```
+AQCRbQRqChDuMBAAwvi6MFFK+Z3LvbwrgYSh8A==
+```
+
+**Dove va:**
+Questa key viene usata sia nel values.yaml che nel Secret Kubernetes.
+
+Nel **values.yaml**:
+```yaml
+secret:
+  userID: cephfs
+  userKey: "<KEY-QUI>"            # ← output del comando sopra
+```
+
+Nel **Secret Kubernetes** (da creare manualmente con kubectl):
+```bash
+kubectl create secret generic csi-cephfs-secret \
+  --namespace kube-system \
+  --from-literal=adminID=cephfs \
+  --from-literal=adminKey="<KEY-QUI>" \
+  --from-literal=userID=cephfs \
+  --from-literal=userKey="<KEY-QUI>"
+```
+
+> NOTA: La chart ceph-csi-cephfs non crea questo secret automaticamente.
+> Va creato manualmente PRIMA di installare la chart, altrimenti il provisioner
+> non riesce ad autenticarsi al cluster Ceph.
+
+---
+
+## Riepilogo rapido
+
+| Comando                                    | Campo values.yaml            |
+|--------------------------------------------|------------------------------|
+| `microceph.ceph fsid`                      | tutti i `clusterID` (x4)     |
+| `microceph.ceph auth get-key client.cephfs`| `secret.userKey` + kubectl secret |
+
+---
+
+## Indirizzi MON (monitors)
+
+```bash
+microceph.ceph mon dump
+```
+
+Cerca le righe con `v2:` e usa gli IP+porta nel campo `monitors` del values.yaml:
+
+```yaml
+csiConfig:
+  - clusterID: "<FSID>"
+    monitors:
+      - "10.205.166.219:6789"
+      - "10.205.166.220:6789"
+      - "10.205.166.221:6789"
+```
+
+La porta standard di Ceph per i MON è **6789**.
