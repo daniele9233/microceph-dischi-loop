@@ -1,0 +1,203 @@
+CSIDriver:
+  fsGroupPolicy: File
+  seLinuxMount: true
+cephConfConfigMapName: ceph-config
+cephconf: |
+  [global]
+    auth_cluster_required = cephx
+    auth_service_required = cephx
+    auth_client_required = cephx
+    fuse_big_writes = true
+commonLabels: {}
+configMapName: ceph-csi-config
+csiConfig:
+  - clusterID: dff8f0f2-f359-4754-82f6-0756b7d5fc53
+    monitors:
+      - 10.205.166.219:6789
+      - 10.205.166.220:6789
+      - 10.205.166.221:6789
+driverName: cephfs.csi.ceph.com
+encryptionKMSConfig: {}
+externallyManagedConfigmap: false
+extraDeploy: []
+kmsConfigMapName: ceph-csi-encryption-kms-config
+kubeletDir: /var/lib/kubelet
+logLevel: 5
+logSlowOperationInterval: 30s
+nodeplugin:
+  affinity: {}
+  annotations: {}
+  fencing: false
+  fusemountoptions: ''
+  httpMetrics:
+    containerPort: 8081
+    enabled: true
+    service:
+      annotations: {}
+      clusterIP: ''
+      enabled: true
+      externalIPs: []
+      loadBalancerIP: ''
+      loadBalancerSourceRanges: []
+      servicePort: 8080
+      type: ClusterIP
+  imagePullSecrets: []
+  kernelmountoptions: ''
+  name: nodeplugin
+  nodeSelector: {}
+  plugin:
+    image:
+      pullPolicy: IfNotPresent
+      repository: quay.io/cephcsi/cephcsi
+      tag: v3.16.2
+    resources: {}
+  podAnnotations: {}
+  podSecurityContext: {}
+  priorityClassName: system-node-critical
+  profiling:
+    enabled: false
+  registrar:
+    image:
+      pullPolicy: IfNotPresent
+      repository: registry.k8s.io/sig-storage/csi-node-driver-registrar
+      tag: v2.15.0
+    resources: {}
+  tolerations: []
+  updateStrategy: RollingUpdate
+pluginSocketFile: csi.sock
+provisioner:
+  affinity: {}
+  annotations: {}
+  attacher:
+    args: null
+    enabled: true
+    extraArgs: []
+    image:
+      pullPolicy: IfNotPresent
+      repository: registry.k8s.io/sig-storage/csi-attacher
+      tag: v4.10.0
+    name: attacher
+    resources: {}
+  enableHostNetwork: false
+  fencing: false
+  httpMetrics:
+    containerPort: 8081
+    enabled: true
+    service:
+      annotations: {}
+      clusterIP: ''
+      enabled: true
+      externalIPs: []
+      loadBalancerIP: ''
+      loadBalancerSourceRanges: []
+      servicePort: 8080
+      type: ClusterIP
+  imagePullSecrets: []
+  name: provisioner
+  nodeSelector: {}
+  podAnnotations: {}
+  podSecurityContext: {}
+  priorityClassName: system-cluster-critical
+  profiling:
+    enabled: false
+  provisioner:
+    args: null
+    extraArgs: []
+    image:
+      pullPolicy: IfNotPresent
+      repository: registry.k8s.io/sig-storage/csi-provisioner
+      tag: v6.0.0
+    resources: {}
+  replicaCount: 1
+  resizer:
+    args: null
+    enabled: true
+    extraArgs: []
+    image:
+      pullPolicy: IfNotPresent
+      repository: registry.k8s.io/sig-storage/csi-resizer
+      tag: v2.0.0
+    name: resizer
+    resources: {}
+  setmetadata: true
+  snapshotter:
+    args:
+      enableVolumeGroupSnapshots: false
+    extraArgs: []
+    image:
+      pullPolicy: IfNotPresent
+      repository: registry.k8s.io/sig-storage/csi-snapshotter
+      tag: v8.4.0
+    resources: {}
+  strategy:
+    rollingUpdate:
+      maxUnavailable: 50%
+    type: RollingUpdate
+  timeout: 60s
+  tolerations: []
+provisionerSocketFile: csi-provisioner.sock
+rbac:
+  create: true
+  leastPrivileges: true
+secret:
+  annotations: {}
+  create: true
+  name: csi-cephfs-secret
+  userID: cephfs
+  userKey: AQDcRgRq4CgoKxAAOT+0oo3wCji1Y7LHmKrzyA==
+selinuxMount: true
+serviceAccounts:
+  nodeplugin:
+    create: true
+    name: null
+  provisioner:
+    create: true
+    name: null
+sidecarLogLevel: 1
+storageClass:
+  allowVolumeExpansion: true
+  annotations: {}
+  clusterID: dff8f0f2-f359-4754-82f6-0756b7d5fc53
+  controllerExpandSecret: csi-cephfs-secret
+  controllerExpandSecretNamespace: ''
+  controllerPublishSecret: csi-cephfs-secret
+  controllerPublishSecretNamespace: ''
+  create: true
+  encrypted: ''
+  encryptionKMSID: ''
+  fsName: cephfs
+  fuseMountOptions: ''
+  kernelMountOptions: ''
+  mountOptions: []
+  mounter: ''
+  name: cephfs
+  nodeStageSecret: csi-cephfs-secret
+  nodeStageSecretNamespace: ''
+  pool: ''
+  provisionerSecret: csi-cephfs-secret
+  provisionerSecretNamespace: ''
+  reclaimPolicy: Retain
+  volumeNamePrefix: ''
+volumeGroupSnapshotClass:
+  annotations: {}
+  clusterID: dff8f0f2-f359-4754-82f6-0756b7d5fc53
+  create: false
+  deletionPolicy: Delete
+  fsName: cephfs
+  groupSnapshotterSecret: csi-cephfs-secret
+  groupSnapshotterSecretNamespace: ''
+  name: csi-cephfsplugin-groupsnapclass
+  volumeGroupNamePrefix: ''
+volumeSnapshotClass:
+  annotations: {}
+  clusterID: dff8f0f2-f359-4754-82f6-0756b7d5fc53
+  create: false
+  deletionPolicy: Delete
+  labels: {}
+  name: csi-cephfsplugin-snapclass
+  snapshotNamePrefix: ''
+  snapshotterSecret: csi-cephfs-secret
+  snapshotterSecretNamespace: ''
+global:
+  cattle:
+    systemProjectId: p-drgrl
